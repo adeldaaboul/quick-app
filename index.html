@@ -141,18 +141,7 @@
   </div>
   <div class="row">
     <input id="note" type="text" placeholder="Note (e.g. groceries)">
-    <select id="category">
-      <option value="">Category</option>
-      <option>Food</option>
-      <option>Transport</option>
-      <option>Shopping</option>
-      <option>Bills</option>
-      <option>Health</option>
-      <option>Fun</option>
-      <option>Salary</option>
-      <option>Gift</option>
-      <option>Other</option>
-    </select>
+    <select id="category" onchange="handleCategoryChange()"></select>
   </div>
   <div class="row">
     <input id="date" type="date">
@@ -173,8 +162,11 @@
 
 <script>
   const KEY = 'cashTracker.entries.v1';
+  const CAT_KEY = 'cashTracker.categories.v1';
+  const DEFAULT_CATEGORIES = ['Food','Transport','Shopping','Bills','Health','Fun','Salary','Gift','Other'];
   let type = 'out';
   let entries = load();
+  let categories = loadCategories();
   let editingId = null;
 
   function load() {
@@ -182,6 +174,33 @@
     catch(e) { return []; }
   }
   function save() { localStorage.setItem(KEY, JSON.stringify(entries)); }
+
+  function loadCategories() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(CAT_KEY));
+      if (Array.isArray(saved) && saved.length) return saved;
+    } catch(e) {}
+    return DEFAULT_CATEGORIES.slice();
+  }
+  function saveCategories() { localStorage.setItem(CAT_KEY, JSON.stringify(categories)); }
+
+  function renderCategoryOptions(selected) {
+    const sel = document.getElementById('category');
+    let html = '<option value="">Category</option>';
+    categories.forEach(c => html += '<option' + (c === selected ? ' selected' : '') + '>' + escapeHtml(c) + '</option>');
+    html += '<option value="__add__">+ Add new category…</option>';
+    sel.innerHTML = html;
+  }
+
+  function handleCategoryChange() {
+    const sel = document.getElementById('category');
+    if (sel.value !== '__add__') return;
+    const name = (prompt('New category name:') || '').trim();
+    if (!name) { renderCategoryOptions(''); return; }
+    const existing = categories.find(c => c.toLowerCase() === name.toLowerCase());
+    if (!existing) { categories.push(name); saveCategories(); }
+    renderCategoryOptions(existing || name);
+  }
 
   function money(n) {
     return (n < 0 ? '-' : '') + '$' + Math.abs(n).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
@@ -226,7 +245,7 @@
       });
       amtEl.value = '';
       document.getElementById('note').value = '';
-      document.getElementById('category').value = '';
+      renderCategoryOptions('');
       amtEl.focus();
     }
     save();
@@ -240,7 +259,7 @@
     setType(e.type);
     document.getElementById('amount').value = e.amount;
     document.getElementById('note').value = e.note;
-    document.getElementById('category').value = e.category || '';
+    renderCategoryOptions(e.category || '');
     document.getElementById('date').value = e.date;
     document.getElementById('entryBox').classList.add('editing');
     document.getElementById('addBtn').textContent = 'Save changes';
@@ -253,7 +272,7 @@
     document.getElementById('addBtn').textContent = 'Add entry';
     document.getElementById('amount').value = '';
     document.getElementById('note').value = '';
-    document.getElementById('category').value = '';
+    renderCategoryOptions('');
     document.getElementById('date').value = todayStr();
     setType('out');
   }
@@ -337,6 +356,7 @@
   }
 
   document.getElementById('date').value = todayStr();
+  renderCategoryOptions('');
   render();
 </script>
 </body>
