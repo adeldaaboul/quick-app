@@ -189,17 +189,39 @@
     let html = '<option value="">Category</option>';
     categories.forEach(c => html += '<option' + (c === selected ? ' selected' : '') + '>' + escapeHtml(c) + '</option>');
     html += '<option value="__add__">+ Add new category…</option>';
+    if (categories.length) html += '<option value="__remove__">🗑 Remove a category…</option>';
     sel.innerHTML = html;
   }
 
   function handleCategoryChange() {
     const sel = document.getElementById('category');
-    if (sel.value !== '__add__') return;
-    const name = (prompt('New category name:') || '').trim();
-    if (!name) { renderCategoryOptions(''); return; }
-    const existing = categories.find(c => c.toLowerCase() === name.toLowerCase());
-    if (!existing) { categories.push(name); saveCategories(); }
-    renderCategoryOptions(existing || name);
+    if (sel.value === '__add__') {
+      const name = (prompt('New category name:') || '').trim();
+      if (!name) { renderCategoryOptions(''); return; }
+      const existing = categories.find(c => c.toLowerCase() === name.toLowerCase());
+      if (!existing) { categories.push(name); saveCategories(); }
+      renderCategoryOptions(existing || name);
+    } else if (sel.value === '__remove__') {
+      removeCategory();
+    }
+  }
+
+  function removeCategory() {
+    const list = categories.map((c, i) => (i + 1) + '. ' + c).join('\n');
+    const input = prompt('Type the number of the category to remove:\n' + list);
+    if (input === null || input.trim() === '') { renderCategoryOptions(''); return; }
+    const idx = parseInt(input, 10) - 1;
+    if (isNaN(idx) || idx < 0 || idx >= categories.length) {
+      alert('Not a valid number.');
+      renderCategoryOptions('');
+      return;
+    }
+    const name = categories[idx];
+    if (confirm('Remove "' + name + '" from the category list? Existing entries keep this label; you just won’t be able to pick it for new ones.')) {
+      categories.splice(idx, 1);
+      saveCategories();
+    }
+    renderCategoryOptions('');
   }
 
   function money(n) {
