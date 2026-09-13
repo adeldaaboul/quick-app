@@ -94,7 +94,16 @@
   .item .amt { font-size: 16px; font-weight: 700; white-space: nowrap; }
   .amt.in { color: var(--in); }
   .amt.out { color: var(--out); }
-  .del { background: none; border: 0; color: var(--muted); font-size: 20px; padding: 0 2px; }
+  .item-actions { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
+  .del, .edit { background: none; border: 0; color: var(--muted); font-size: 18px; padding: 4px; line-height: 1; }
+  .del { font-size: 20px; }
+
+  .entry-box.editing { outline: 2px solid var(--accent); }
+  .entry-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .entry-head .editing-label { font-size: 13px; font-weight: 700; color: var(--accent); display: none; }
+  .entry-head .cancel-edit { font-size: 13px; color: var(--muted); background: none; border: 0; display: none; }
+  .entry-box.editing .entry-head .editing-label,
+  .entry-box.editing .entry-head .cancel-edit { display: block; }
 
   .empty { text-align: center; color: var(--muted); padding: 40px 20px; font-size: 15px; }
   .empty .big { font-size: 40px; margin-bottom: 8px; }
@@ -117,7 +126,11 @@
   </div>
 </div>
 
-<div class="entry-box">
+<div class="entry-box" id="entryBox">
+  <div class="entry-head">
+    <span class="editing-label">Editing entry</span>
+    <button class="cancel-edit" onclick="cancelEdit()">Cancel</button>
+  </div>
   <div class="toggle">
     <button id="btnOut" class="active-out" onclick="setType('out')">− Spent</button>
     <button id="btnIn" onclick="setType('in')">+ Received</button>
@@ -144,7 +157,7 @@
   <div class="row">
     <input id="date" type="date">
   </div>
-  <button class="add-btn" onclick="addEntry()">Add entry</button>
+  <button class="add-btn" id="addBtn" onclick="addEntry()">Add entry</button>
 </div>
 
 <div class="list-head">
@@ -162,6 +175,7 @@
   const KEY = 'cashTracker.entries.v1';
   let type = 'out';
   let entries = load();
+  let editingId = null;
 
   function load() {
     try { return JSON.parse(localStorage.getItem(KEY)) || []; }
@@ -192,22 +206,61 @@
     const note = document.getElementById('note').value.trim();
     const cat = document.getElementById('category').value;
     const date = document.getElementById('date').value || todayStr();
-    entries.push({
-      id: Date.now(),
-      type, amount: Math.round(amt * 100) / 100,
-      note: note || (cat || (type === 'in' ? 'Received' : 'Spent')),
-      category: cat, date
-    });
+
+    if (editingId !== null) {
+      const e = entries.find(e => e.id === editingId);
+      if (e) {
+        e.type = type;
+        e.amount = Math.round(amt * 100) / 100;
+        e.note = note || (cat || (type === 'in' ? 'Received' : 'Spent'));
+        e.category = cat;
+        e.date = date;
+      }
+      cancelEdit();
+    } else {
+      entries.push({
+        id: Date.now(),
+        type, amount: Math.round(amt * 100) / 100,
+        note: note || (cat || (type === 'in' ? 'Received' : 'Spent')),
+        category: cat, date
+      });
+      amtEl.value = '';
+      document.getElementById('note').value = '';
+      document.getElementById('category').value = '';
+      amtEl.focus();
+    }
     save();
-    amtEl.value = '';
+    render();
+  }
+
+  function editEntry(id) {
+    const e = entries.find(e => e.id === id);
+    if (!e) return;
+    editingId = id;
+    setType(e.type);
+    document.getElementById('amount').value = e.amount;
+    document.getElementById('note').value = e.note;
+    document.getElementById('category').value = e.category || '';
+    document.getElementById('date').value = e.date;
+    document.getElementById('entryBox').classList.add('editing');
+    document.getElementById('addBtn').textContent = 'Save changes';
+    document.getElementById('entryBox').scrollIntoView({behavior:'smooth', block:'start'});
+  }
+
+  function cancelEdit() {
+    editingId = null;
+    document.getElementById('entryBox').classList.remove('editing');
+    document.getElementById('addBtn').textContent = 'Add entry';
+    document.getElementById('amount').value = '';
     document.getElementById('note').value = '';
     document.getElementById('category').value = '';
-    render();
-    amtEl.focus();
+    document.getElementById('date').value = todayStr();
+    setType('out');
   }
 
   function delEntry(id) {
     entries = entries.filter(e => e.id !== id);
+    if (editingId === id) cancelEdit();
     save(); render();
   }
 
@@ -253,7 +306,10 @@
           '<div class="info"><div class="note">' + escapeHtml(e.note) + '</div>' +
           '<div class="meta">' + (e.category ? escapeHtml(e.category) : (e.type==='in'?'Received':'Spent')) + '</div></div>' +
           '<div class="amt ' + e.type + '">' + sign + money(e.amount).replace('$','$') + '</div>' +
+          '<div class="item-actions">' +
+          '<button class="edit" onclick="editEntry(' + e.id + ')">✎</button>' +
           '<button class="del" onclick="delEntry(' + e.id + ')">×</button>' +
+          '</div>' +
           '</div>';
       });
       html += '</div>';
