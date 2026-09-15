@@ -77,6 +77,8 @@
   .list-head { display: flex; justify-content: space-between; align-items: center; margin: 4px 2px 8px; }
   .list-head h2 { font-size: 15px; margin: 0; color: var(--muted); font-weight: 600; }
   .list-head button { background: none; border: 0; color: var(--muted); font-size: 13px; }
+  .list-actions { display: flex; gap: 14px; }
+  .list-head .clear-all { color: var(--out); }
 
   .day-group { margin-bottom: 14px; }
   .day-label { font-size: 12px; color: var(--muted); margin: 0 2px 6px; text-transform: uppercase; letter-spacing: .5px; }
@@ -151,7 +153,10 @@
 
 <div class="list-head">
   <h2>History</h2>
-  <button onclick="exportCsv()">Export CSV</button>
+  <div class="list-actions">
+    <button onclick="exportCsv()">Export CSV</button>
+    <button class="clear-all" id="clearAllBtn" onclick="clearAll()">Clear all</button>
+  </div>
 </div>
 <div id="list"></div>
 
@@ -305,6 +310,14 @@
     save(); render();
   }
 
+  function clearAll() {
+    if (!entries.length) return;
+    if (!confirm('Are you sure you want to clear all history? All ' + entries.length + ' entries will be deleted and this can’t be undone.')) return;
+    entries = [];
+    if (editingId !== null) cancelEdit();
+    save(); render();
+  }
+
   function fmtDay(dstr) {
     const d = new Date(dstr + 'T00:00:00');
     const t = todayStr();
@@ -324,6 +337,7 @@
     document.getElementById('totalOut').textContent = money(totalOut);
 
     const list = document.getElementById('list');
+    document.getElementById('clearAllBtn').hidden = entries.length === 0;
     if (entries.length === 0) {
       list.innerHTML = '<div class="empty"><div class="big">🪙</div>No entries yet.<br>Add your first one above.</div>';
       return;
